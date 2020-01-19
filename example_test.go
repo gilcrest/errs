@@ -118,17 +118,17 @@ func layer1() error {
 // 5		// something else went wrong
 // 6	}
 
-func ExampleSentinelErr() {
+// func ExampleSentinelErr() {
 
-	// ErrFoo is for testing Sentinel Errors with errors.Is
-	var sentinelErr = errors.New("foo error")
+// 	// ErrFoo is for testing Sentinel Errors with errors.Is
+// 	var sentinelErr = errors.New("foo error")
 
-	err := sentinelErr
+// 	err := sentinelErr
 
-	got := errors.Is(err, sentinelErr)
+// 	got := errors.Is(err, sentinelErr)
 
-	fmt.Println("Is ErrFoo:", got)
-	// Output:
-	//
-	// Is ErrFoo: true
-}
+// 	fmt.Println("Is ErrFoo:", got)
+// 	// Output:
+// 	//
+// 	// Is ErrFoo: true
+// }
