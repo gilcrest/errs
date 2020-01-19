@@ -9,8 +9,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"runtime"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Error is the type that implements the error interface.
@@ -32,6 +33,10 @@ type Error struct {
 	Param Parameter
 	// Code is a human-readable, short representation of the error
 	Code Code
+	// StripError denotes whether to remove the error "stack"
+	// If true, the error "stack" details are removed, if false,
+	// the error "stack" details are appended
+	StripError bool
 	// The underlying error that triggered this one, if any.
 	Err error
 }
@@ -190,7 +195,7 @@ func E(args ...interface{}) error {
 			e.Param = arg
 		default:
 			_, file, line, _ := runtime.Caller(1)
-			log.Printf("errors.E: bad call from %s:%d: %v", file, line, args)
+			log.Error().Msgf("errors.E: bad call from %s:%d: %v", file, line, args)
 			return fmt.Errorf("unknown type %T, value %v in error call", arg, arg)
 		}
 	}
@@ -208,6 +213,7 @@ func E(args ...interface{}) error {
 	if prev.User == e.User {
 		prev.User = ""
 	}
+
 	if prev.Kind == e.Kind {
 		prev.Kind = Other
 	}
@@ -215,6 +221,24 @@ func E(args ...interface{}) error {
 	if e.Kind == Other {
 		e.Kind = prev.Kind
 		prev.Kind = Other
+	}
+
+	if prev.Code == e.Code {
+		prev.Code = ""
+	}
+	// If this error has Code == "", pull up the inner one.
+	if e.Code == "" {
+		e.Code = prev.Code
+		prev.Code = ""
+	}
+
+	if prev.Param == e.Param {
+		prev.Param = ""
+	}
+	// If this error has Code == "", pull up the inner one.
+	if e.Param == "" {
+		e.Param = prev.Param
+		prev.Param = ""
 	}
 
 	return e
@@ -230,29 +254,30 @@ func pad(b *bytes.Buffer, str string) {
 
 func (e *Error) Error() string {
 	b := new(bytes.Buffer)
-	if e.Op != "" {
-		pad(b, ": ")
-		b.WriteString(string(e.Op))
-	}
-	if e.Path != "" {
-		pad(b, ": ")
-		b.WriteString(string(e.Path))
-	}
-	if e.User != "" {
-		if e.Path == "" {
+	if !e.StripError {
+		if e.Op != "" {
 			pad(b, ": ")
-		} else {
-			pad(b, ", ")
+			b.WriteString(string(e.Op))
 		}
-		b.WriteString("user ")
-		b.WriteString(string(e.User))
-	}
-	if e.Kind != 0 {
-		pad(b, ": ")
-		b.WriteString(e.Kind.String())
+		if e.Path != "" {
+			pad(b, ": ")
+			b.WriteString(string(e.Path))
+		}
+		if e.User != "" {
+			if e.Path == "" {
+				pad(b, ": ")
+			} else {
+				pad(b, ", ")
+			}
+			b.WriteString("user ")
+			b.WriteString(string(e.User))
+		}
+		if e.Kind != 0 {
+			pad(b, ": ")
+			b.WriteString(e.Kind.String())
+		}
 	}
 	if e.Err != nil {
-		// Indent on new line if we are cascading non-empty Upspin errors.
 		if prevErr, ok := e.Err.(*Error); ok {
 			if !prevErr.isZero() {
 				pad(b, Separator)
