@@ -128,15 +128,3 @@ func TestKind(t *testing.T) {
 		}
 	}
 }
-
-// Simple test for issue 398.
-func TestIssue398(t *testing.T) {
-	e := E("a@b.com", "c@d.com", "e@f.com/", "g@h.com/").(*Error)
-	// First should win.
-	if e.User != "a@b.com" {
-		t.Errorf("wrong user: got %q; want %q", e.User, "a@b.com")
-	}
-	if e.Path != "e@f.com/" {
-		t.Errorf("wrong path:  got %q; want %q", e.Path, "e@f.com/")
-	}
-}
