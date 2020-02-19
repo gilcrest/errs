@@ -144,7 +144,7 @@ func HTTPError(w http.ResponseWriter, err error) {
 			log.Error().Msgf("Unknown Error - HTTP %d - %s", cd, err.Error())
 
 			// Marshal errResponse struct to JSON for the response body
-			errJSON, _ := json.MarshalIndent(er, "", "    ")
+			errJSON, _ := json.Marshal(er)
 
 			sendError(w, string(errJSON), cd)
 		}
