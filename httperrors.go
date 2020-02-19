@@ -124,7 +124,7 @@ func HTTPError(w http.ResponseWriter, err error) {
 				}
 
 				// Marshal errResponse struct to JSON for the response body
-				errJSON, _ := json.MarshalIndent(er, "", "    ")
+				errJSON, _ := json.Marshal(er)
 
 				sendError(w, string(errJSON), e.Status())
 			}
