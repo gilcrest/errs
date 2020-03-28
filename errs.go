@@ -88,19 +88,21 @@ type Code string
 // any items since that will change their values.
 // New items must be added only to the end.
 const (
-	Other          Kind = iota // Unclassified error. This value is not printed in the error message.
-	Invalid                    // Invalid operation for this type of item.
-	Permission                 // Permission denied.
-	IO                         // External I/O error such as network failure.
-	Exist                      // Item already exists.
-	NotExist                   // Item does not exist.
-	Private                    // Information withheld.
-	Internal                   // Internal error or inconsistency.
-	BrokenLink                 // Link target does not exist.
-	Database                   // Error from database.
-	Validation                 // Input validation error.
-	Unanticipated              // Unanticipated error.
-	InvalidRequest             // Invalid Request
+	Other           Kind = iota // Unclassified error. This value is not printed in the error message.
+	Invalid                     // Invalid operation for this type of item.
+	Permission                  // Permission denied.
+	IO                          // External I/O error such as network failure.
+	Exist                       // Item already exists.
+	NotExist                    // Item does not exist.
+	Private                     // Information withheld.
+	Internal                    // Internal error or inconsistency.
+	BrokenLink                  // Link target does not exist.
+	Database                    // Error from database.
+	Validation                  // Input validation error.
+	Unanticipated               // Unanticipated error.
+	InvalidRequest              // Invalid Request
+	Unauthenticated             // User did not properly authenticate
+	Unauthorized                // User is not authorized for the resource
 )
 
 func (k Kind) String() string {
@@ -131,6 +133,10 @@ func (k Kind) String() string {
 		return "unanticipated_error"
 	case InvalidRequest:
 		return "invalid_request_error"
+	case Unauthenticated:
+		return "unauthenticated"
+	case Unauthorized:
+		return "unauthorized"
 	}
 	return "unknown_error_kind"
 }
