@@ -185,6 +185,9 @@ func RE(args ...interface{}) error {
 			e.HTTPStatusCode = arg
 		case Kind:
 			e.Kind = arg
+		// RE is meant to just prepare the error for the response
+		// if you want to set a new error string, make the call like:
+		// err := errs.RE(http.StatusBadRequest, errs.E(op, "This is an error message"))
 		case string:
 			e.Code = Code(arg)
 		case Code:
