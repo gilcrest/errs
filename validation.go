@@ -31,7 +31,7 @@ func (e BazError) Error() string {
 	return fmt.Sprintf("baz error: %s", e.Reason)
 }
 
-// Unwrap does some unwrapping shit
+// Unwrap does some unwrapping
 func (e BazError) Unwrap() error {
 	return e.Inner
 }

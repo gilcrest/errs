@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 // hError represents an HTTP handler error. It provides methods for a HTTP status
@@ -88,15 +88,14 @@ type ServiceError struct {
 	Message string `json:"message,omitempty"`
 }
 
-// HTTPError takes a writer and an error, performs a type switch to
+// HTTPError takes a writer, error and a logger, performs a type switch to
 // determine if the type is an HTTPError (which meets the Error interface
 // as defined in this package), then sends the Error as a response to the
 // client. If the type does not meet the Error interface as defined in this
 // package, then a proper error is still formed and sent to the client,
-// however, the Kind and Code will be Unanticipated.
-func HTTPError(w http.ResponseWriter, err error) {
-	const op Op = "errors.httpError"
-
+// however, the Kind and Code will be Unanticipated. Logging of error is
+// also done using https://github.com/rs/zerolog
+func HTTPError(w http.ResponseWriter, err error, logger zerolog.Logger) {
 	if err != nil {
 		// We perform a "type switch" https://tour.golang.org/methods/16
 		// to determine the interface value type
@@ -107,13 +106,10 @@ func HTTPError(w http.ResponseWriter, err error) {
 			// We can retrieve the status here and write out a specific
 			// HTTP status code.
 			if e.StatusOnly() {
-				log.Error().Int("HTTP Error StatusCode", e.Status()).Msg("")
-			} else {
-				log.Error().Msgf("HTTP %d - %s", e.Status(), e)
-			}
-			if e.StatusOnly() {
+				logger.Error().Int("HTTP Error StatusCode", e.Status()).Msg("")
 				sendError(w, "", e.Status())
 			} else {
+				logger.Error().Msgf("HTTP %d - %s", e.Status(), e)
 				er := ErrResponse{
 					Error: ServiceError{
 						Kind:    e.ErrKind(),
@@ -141,7 +137,7 @@ func HTTPError(w http.ResponseWriter, err error) {
 				},
 			}
 
-			log.Error().Msgf("Unknown Error - HTTP %d - %s", cd, err.Error())
+			logger.Error().Msgf("Unknown Error - HTTP %d - %s", cd, err.Error())
 
 			// Marshal errResponse struct to JSON for the response body
 			errJSON, _ := json.Marshal(er)
@@ -162,7 +158,7 @@ func sendError(w http.ResponseWriter, error string, statusCode int) {
 	w.WriteHeader(statusCode)
 	// Only write response body if there is an error string populated
 	if error != "" {
-		fmt.Fprintln(w, error)
+		_, _ = fmt.Fprintln(w, error)
 	}
 }
 
@@ -173,7 +169,7 @@ func sendError(w http.ResponseWriter, error string, statusCode int) {
 // only the last one is recorded.
 //
 // The types are:
-func RE(args ...interface{}) error {
+func RE(logger zerolog.Logger, args ...interface{}) error {
 	if len(args) == 0 {
 		panic("call to errors.RE with no arguments")
 	}
@@ -193,15 +189,15 @@ func RE(args ...interface{}) error {
 			e.Param = arg
 		case *Error:
 			// Make a copy
-			copy := *arg
+			argCopy := *arg
 
 			// fullErr is the full error message that is to be logged
 			// before removing the error stack details through the
 			// StripStack function
-			fullErr := &copy
+			fullErr := &argCopy
 			// log the full embedded error before removing the
 			// error stack
-			log.Error().Err(fullErr).
+			logger.Error().Err(fullErr).
 				Int("HTTPStatusCode", e.HTTPStatusCode).
 				Str("Kind", fullErr.Kind.String()).
 				Str("Parameter", string(fullErr.Param)).
@@ -216,8 +212,7 @@ func RE(args ...interface{}) error {
 			e.Err = arg
 		default:
 			_, file, line, _ := runtime.Caller(1)
-			log.Error().Msgf("errors.E: bad call from %s:%d: %v", file, line, args)
-			return fmt.Errorf("unknown type %T, value %v in error call", arg, arg)
+			return fmt.Errorf("errors.E: bad call from %s:%d: %v, unknown type %T, value %v in error call", file, line, args, arg, arg)
 		}
 	}
 

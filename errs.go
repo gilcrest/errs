@@ -10,8 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-
-	"github.com/rs/zerolog/log"
 )
 
 // Error is the type that implements the error interface.
@@ -185,8 +183,8 @@ func E(args ...interface{}) error {
 			e.Kind = arg
 		case *Error:
 			// Make a copy
-			copy := *arg
-			e.Err = &copy
+			argCopy := *arg
+			e.Err = &argCopy
 		case error:
 			e.Err = arg
 		case Code:
@@ -195,8 +193,7 @@ func E(args ...interface{}) error {
 			e.Param = arg
 		default:
 			_, file, line, _ := runtime.Caller(1)
-			log.Error().Msgf("errors.E: bad call from %s:%d: %v", file, line, args)
-			return fmt.Errorf("unknown type %T, value %v in error call", arg, arg)
+			return fmt.Errorf("errors.E: bad call from %s:%d: %v, unknown type %T, value %v in error call", file, line, args, arg, arg)
 		}
 	}
 
