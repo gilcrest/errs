@@ -10,12 +10,15 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func errStatusOnly(err *Error) bool {
-	return err.Kind == 0 &&
-		err.Param == "" &&
-		err.Code == "" &&
-		err.Err == nil
-}
+//// errStatusOnly checks to see if the error is a "Status Code only"
+//// error. Typically these are used for 401 and 403 errors where you
+//// don't want to send back any response body.
+//func errStatusOnly(err *Error) bool {
+//	return err.Kind == 0 &&
+//		err.Param == "" &&
+//		err.Code == "" &&
+//		err.Err == nil
+//}
 
 // HTTPErrorResponse takes a writer, error and a logger, performs a
 // type switch to determine if the type is an HTTPError (which meets
@@ -34,8 +37,9 @@ func HTTPErrorResponse(w http.ResponseWriter, logger zerolog.Logger, httpStatusC
 		// the Error interface defined above), then
 		case *Error:
 			// We can retrieve the status here and write out a specific
-			// HTTP status code.
-			if errStatusOnly(e) {
+			// HTTP status code. If there is error is empty, just
+			// send the HTTP Status Code as response
+			if e.isZero() {
 				logger.Error().Int("HTTP Error StatusCode", httpStatusCode).Msg("")
 				sendError(w, "", httpStatusCode)
 			} else {
@@ -94,6 +98,23 @@ func HTTPErrorResponse(w http.ResponseWriter, logger zerolog.Logger, httpStatusC
 
 			sendError(w, string(errJSON), cd)
 		}
+	} else {
+		// if a nil error is passed, serve an HTTP 500
+		cd := http.StatusInternalServerError
+		er := ErrResponse{
+			Error: ServiceError{
+				Kind:    Unanticipated.String(),
+				Code:    "Unanticipated",
+				Message: "Unexpected error - contact support",
+			},
+		}
+
+		logger.Error().Msgf("Nil Error sent - HTTP %d", cd)
+
+		// Marshal errResponse struct to JSON for the response body
+		errJSON, _ := json.Marshal(er)
+
+		sendError(w, string(errJSON), cd)
 	}
 }
 
