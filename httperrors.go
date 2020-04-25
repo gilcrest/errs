@@ -99,22 +99,10 @@ func HTTPErrorResponse(w http.ResponseWriter, logger zerolog.Logger, httpStatusC
 			sendError(w, string(errJSON), cd)
 		}
 	} else {
-		// if a nil error is passed, serve an HTTP 500
-		cd := http.StatusInternalServerError
-		er := ErrResponse{
-			Error: ServiceError{
-				Kind:    Unanticipated.String(),
-				Code:    "Unanticipated",
-				Message: "Unexpected error - contact support",
-			},
-		}
-
-		logger.Error().Msgf("Nil Error sent - HTTP %d", cd)
-
-		// Marshal errResponse struct to JSON for the response body
-		errJSON, _ := json.Marshal(er)
-
-		sendError(w, string(errJSON), cd)
+		// if a nil error is passed, do not write a response body,
+		// just send the HTTP Status Code
+		logger.Error().Int("HTTP Error StatusCode", httpStatusCode).Msg("nil error - no response body sent")
+		sendError(w, "", httpStatusCode)
 	}
 }
 
