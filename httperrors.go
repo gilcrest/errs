@@ -28,7 +28,28 @@ import (
 // is still formed and sent to the client, however, the Kind and
 // Code will be Unanticipated. Logging of error is also done using
 // https://github.com/rs/zerolog
-func HTTPErrorResponse(w http.ResponseWriter, logger zerolog.Logger, httpStatusCode int, err error) {
+func HTTPErrorResponse(w http.ResponseWriter, logger zerolog.Logger, err error) {
+
+	var statusCode = map[Kind]int{
+		Other:           http.StatusBadRequest,
+		Invalid:         http.StatusInternalServerError,
+		Permission:      http.StatusForbidden,
+		IO:              http.StatusInternalServerError,
+		Exist:           http.StatusBadRequest,
+		NotExist:        http.StatusBadRequest,
+		Private:         http.StatusBadRequest,
+		Internal:        http.StatusInternalServerError,
+		BrokenLink:      http.StatusBadRequest,
+		Database:        http.StatusInternalServerError,
+		Validation:      http.StatusBadRequest,
+		Unanticipated:   http.StatusInternalServerError,
+		InvalidRequest:  http.StatusBadRequest,
+		Unauthenticated: http.StatusUnauthorized,
+		Unauthorized:    http.StatusForbidden,
+	}
+
+	var httpStatusCode int
+
 	if err != nil {
 		// We perform a "type switch" https://tour.golang.org/methods/16
 		// to determine the interface value type
@@ -36,11 +57,27 @@ func HTTPErrorResponse(w http.ResponseWriter, logger zerolog.Logger, httpStatusC
 		// If the interface value is of type Error (not a typical error, but
 		// the Error interface defined above), then
 		case *Error:
+			httpStatusCode = statusCode[e.Kind]
 			// We can retrieve the status here and write out a specific
 			// HTTP status code. If there is error is empty, just
 			// send the HTTP Status Code as response
 			if e.isZero() {
 				logger.Error().Int("HTTP Error StatusCode", httpStatusCode).Msg("")
+				sendError(w, "", httpStatusCode)
+			} else if e.Kind == Unauthenticated {
+				// For Unauthenticated and Unauthorized errors,
+				// the response body should be empty. Use logger
+				// to log the error and then just send
+				// http.StatusUnauthorized (401) or http.StatusForbidden (403)
+				// depending on the circumstances. "In summary, a
+				// 401 Unauthorized response should be used for missing or bad authentication,
+				// and a 403 Forbidden response should be used afterwards, when the user is
+				// authenticated but isn’t authorized to perform the requested operation on
+				// the given resource."
+				logger.Error().Int("HTTP Error StatusCode", http.StatusUnauthorized).Msg(e.Error())
+				sendError(w, "", httpStatusCode)
+			} else if e.Kind == Unauthorized {
+				logger.Error().Int("HTTP Error StatusCode", http.StatusForbidden).Msg(e.Error())
 				sendError(w, "", httpStatusCode)
 			} else {
 				// Make a copy
@@ -99,6 +136,7 @@ func HTTPErrorResponse(w http.ResponseWriter, logger zerolog.Logger, httpStatusC
 			sendError(w, string(errJSON), cd)
 		}
 	} else {
+		httpStatusCode = statusCode[0]
 		// if a nil error is passed, do not write a response body,
 		// just send the HTTP Status Code
 		logger.Error().Int("HTTP Error StatusCode", httpStatusCode).Msg("nil error - no response body sent")
