@@ -161,6 +161,11 @@ func sendError(w http.ResponseWriter, errStr string, httpStatusCode int) {
 		w.Header().Set("Content-Type", "application/json")
 	}
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// TODO - refactor this package to allow for WWW-Authenticate header on 401/403
+	//if httpStatusCode == 401 || httpStatusCode == 403 {
+	//	br := fmt.Sprintf(`Bearer realm="%s"`, realm)
+	//	w.Header().Set("WWW-Authenticate", br)
+	//}
 	w.WriteHeader(httpStatusCode)
 	// Only write response body if there is an error string populated
 	if errStr != "" {
