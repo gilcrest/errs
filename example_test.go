@@ -7,6 +7,10 @@ package errs_test
 import (
 	"errors"
 	"fmt"
+	"net/http/httptest"
+	"os"
+
+	"github.com/rs/zerolog"
 
 	"github.com/gilcrest/errs"
 )
@@ -58,13 +62,19 @@ func ExampleE() {
 	// errors/layer4: input_validation_error] errors/layer3] errors/layer2] errors/layer1|: Actual error message
 }
 
-func ExampleRE() {
-	err := layer4()
+func ExampleHTTPErrorResponse() {
 
-	fmt.Println(errs.RE(err))
+	w := httptest.NewRecorder()
+	logger := setupLogger()
+
+	err := layer4()
+	errs.HTTPErrorResponse(w, logger, err)
+
+	fmt.Println(w.Body)
 	// Output:
 	//
-	// Actual error message
+	// {"level":"error","error":"errors/layer4: input_validation_error] errors/layer3] errors/layer2] errors/layer1|: Actual error message","HTTPStatusCode":400,"Kind":"input_validation_error","Parameter":"testParam","Code":"0212","message":"Response Error Sent"}
+	// {"error":{"kind":"input_validation_error","code":"0212","param":"testParam","message":"Actual error message"}}
 }
 
 func ExampleAs() {
@@ -83,24 +93,34 @@ func ExampleAs() {
 func layer4() error {
 	const op errs.Op = "errors/layer4"
 	err := layer3()
-	return errs.E(op, errs.Validation, err)
+	return errs.E(op, err)
 }
 
 func layer3() error {
 	const op errs.Op = "errors/layer3"
 	err := layer2()
-	return errs.E(op, errs.Validation, err)
+	return errs.E(op, err)
 }
 
 func layer2() error {
 	const op errs.Op = "errors/layer2"
 	err := layer1()
-	return errs.E(op, errs.Validation, err)
+	return errs.E(op, err)
 }
 
 func layer1() error {
 	const op errs.Op = "errors/layer1"
-	return errs.E(op, errs.Validation, "Actual error message")
+	return errs.E(op, errs.Validation, errs.Parameter("testParam"), errs.Code("0212"), "Actual error message")
+}
+
+func setupLogger() zerolog.Logger {
+	zerolog.TimeFieldFormat = ""
+
+	// set logging level based on input
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
+	// start a new logger with Stdout as the target
+	return zerolog.New(os.Stdout).With().Logger()
 }
 
 // One alternative is to return custom error values, called sentinel errors.

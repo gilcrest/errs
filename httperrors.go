@@ -2,7 +2,6 @@ package errs
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -25,7 +24,7 @@ type ServiceError struct {
 }
 
 // HTTPErrorResponse takes a writer, error and a logger, performs a
-// type switch to determine if the type is an HTTPError (which meets
+// type switch to determine if the type is an Error (which meets
 // the Error interface as defined in this package), then sends the
 // Error as a response to the client. If the type does not meet the
 // Error interface as defined in this package, then a proper error
@@ -66,7 +65,7 @@ func HTTPErrorResponse(w http.ResponseWriter, logger zerolog.Logger, err error) 
 		case *Error:
 			httpStatusCode = statusCode[e.Kind]
 			// We can retrieve the status here and write out a specific
-			// HTTP status code. If there is error is empty, just
+			// HTTP status code. If the error is empty, just
 			// send the HTTP Status Code as response
 			if e.isZero() {
 				logger.Error().Int("HTTP Error StatusCode", httpStatusCode).Msg("")
@@ -102,18 +101,15 @@ func HTTPErrorResponse(w http.ResponseWriter, logger zerolog.Logger, err error) 
 					Str("Parameter", string(fullErr.Param)).
 					Str("Code", string(fullErr.Code)).
 					Msg("Response Error Sent")
-				// For API response errors, don't show full recursion details,
-				// just the error message
-				fullErr.Err = StripStack(fullErr)
-				fullErr.StripError = true
-				e.Err = fullErr
 
+				// For API response errors, don't show full recursion details,
+				// just the error message (stripstack does this)
 				er := ErrResponse{
 					Error: ServiceError{
 						Kind:    e.Kind.String(),
 						Code:    string(e.Code),
 						Param:   string(e.Param),
-						Message: e.Error(),
+						Message: stripStack(fullErr),
 					},
 				}
 
@@ -173,21 +169,14 @@ func sendError(w http.ResponseWriter, errStr string, httpStatusCode int) {
 	}
 }
 
-// StripStack takes an Error type (Error defined in this module) and
+// stripStack takes an Error type (Error defined in this module) and
 // removes the leading stack information
-func StripStack(e error) error {
-	err, ok := e.(*Error)
-	if ok {
-		// get error string
-		errStr := err.Error()
-		// get position where |: character lands in string
-		idx := strings.Index(errStr, "|:")
-		// substring from after the |: character
-		substring := errStr[idx+3:]
-		// put substring back into error
-		return errors.New(substring)
-	}
-
-	// If it's not an *Error type, don't strip anything
-	return e
+func stripStack(e *Error) string {
+	// get error string
+	errStr := e.Error()
+	// get position where |: character lands in string
+	idx := strings.Index(errStr, "|:")
+	// substring from after the |: character
+	s := errStr[idx+3:]
+	return s
 }
